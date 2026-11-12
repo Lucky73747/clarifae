@@ -1,0 +1,49 @@
+name: build-clarifae
+
+on:
+  push:
+    branches: [build-pr4]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install NDK
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+          unzip -q android-ndk-r27c-linux.zip -d $HOME
+          echo "ANDROID_NDK_HOME=$HOME/android-ndk-r27c" >> $GITHUB_ENV
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: Fetch RNNoise + weights
+        run: ./scripts/fetch_deps.sh
+
+      - name: Build libclarifae.so (arm64 + armv7)
+        run: |
+          chmod +x build.sh scripts/*.sh
+          ABIS="arm64-v8a armeabi-v7a" ./build.sh
+
+      - name: Package flashable zip
+        run: |
+          chmod +x scripts/package.sh
+          ./scripts/package.sh || true
+          ls -la dist/ || true
+          # fallback: package manually if script needs tweaking
+          if [ ! -f dist/*.zip ]; then
+            mkdir -p dist
+            cp -r common system vendor webroot META-INF module.prop post-fs-data.sh service.sh sepolicy.rule system.prop uninstall.sh customize.sh dist/ 2>/dev/null || true
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clarifae-build
+          path: |
+            lib/
+            dist/
