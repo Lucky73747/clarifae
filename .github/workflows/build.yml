@@ -25,6 +25,9 @@ jobs:
       - name: Fetch RNNoise + weights
         run: ./scripts/fetch_deps.sh
 
+      - name: Drop duplicate model variant
+        run: rm -f native/third_party/rnnoise/src/rnnoise_data_little.c
+
       - name: Build libclarifae.so (arm64 + armv7)
         run: |
           chmod +x build.sh scripts/*.sh
